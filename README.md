@@ -53,6 +53,12 @@ handler for `xdd://` URLs. Open a URL explicitly with:
 xdd open 'xdd://projects:code/repo'
 ```
 
+Resolve a URL to its absolute path without opening it:
+
+```bash
+xdd resolve 'xdd://projects:code/repo'
+```
+
 Targets are opened with `xdg-open`. The Linux handler is currently fixed and is
 not configurable yet.
 

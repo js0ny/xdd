@@ -37,6 +37,7 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     Open { url: String },
+    Resolve { url: String },
     Register,
 }
 
@@ -60,6 +61,12 @@ fn run() -> Result<()> {
             }
             platform::open(&target)
         }
+        Command::Resolve { url } => {
+            let config = config::load()?;
+            let target = resolve(&config, &url)?;
+            println!("{}", target.display());
+            Ok(())
+        }
         Command::Register => platform::register(),
     }
 }
@@ -77,6 +84,16 @@ mod tests {
                 .unwrap()
                 .command,
             Command::Open { .. }
+        ));
+    }
+
+    #[test]
+    fn parses_resolve_command() {
+        assert!(matches!(
+            Cli::try_parse_from(["xdd", "resolve", "xdd://docs:file.md"])
+                .unwrap()
+                .command,
+            Command::Resolve { .. }
         ));
     }
 }
