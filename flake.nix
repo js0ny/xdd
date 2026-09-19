@@ -1,5 +1,5 @@
 {
-  description = "";
+  description = "Cross-platform directory definition URL handler";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs =
@@ -21,13 +21,13 @@
         in
         {
           default = pkgs.rustPlatform.buildRustPackage {
-            pname = "diranchor";
+            pname = "xdd";
             version = "0.1.0";
             src = lib.cleanSource ./.;
             cargoLock.lockFile = ./Cargo.lock;
 
             meta = {
-              description = "";
+              description = "Cross-platform directory definition URL handler";
               license = lib.licenses.asl20;
               platforms = with lib.platforms; linux ++ darwin;
             };
@@ -41,6 +41,8 @@
           ciDeps = with pkgs; [
             rustc
             cargo
+            rustfmt
+            clippy
           ];
           devDeps = with pkgs; [ rust-analyzer ];
         in
