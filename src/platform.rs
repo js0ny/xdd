@@ -20,7 +20,7 @@ pub fn open(path: &Path) -> Result<()> {
                 "{OPEN_HANDLER} exited with status {status}"
             )));
         }
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "linux"))]

@@ -1,4 +1,6 @@
 mod config;
+mod editor;
+mod link;
 mod platform;
 mod resolver;
 
@@ -6,7 +8,7 @@ use std::{error::Error, fmt};
 
 use clap::{Parser, Subcommand};
 
-use crate::resolver::resolve;
+use crate::{link::LinkFormat, resolver::resolve};
 
 pub type Result<T> = std::result::Result<T, XddError>;
 
@@ -36,9 +38,41 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    Open { url: String },
-    Resolve { url: String },
+    Open {
+        url: String,
+    },
+    Resolve {
+        url: String,
+    },
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
+    Roots {
+        #[command(subcommand)]
+        command: RootsCommand,
+    },
+    Link {
+        directory: String,
+        #[arg(long)]
+        root: Option<String>,
+        #[arg(long, value_enum, default_value_t = LinkFormat::Plain)]
+        format: LinkFormat,
+        #[arg(long)]
+        label: Option<String>,
+    },
     Register,
+}
+
+#[derive(Debug, Subcommand)]
+enum ConfigCommand {
+    Path,
+    Edit,
+}
+
+#[derive(Debug, Subcommand)]
+enum RootsCommand {
+    List,
 }
 
 fn main() {
@@ -65,6 +99,43 @@ fn run() -> Result<()> {
             let config = config::load()?;
             let target = resolve(&config, &url)?;
             println!("{}", target.display());
+            Ok(())
+        }
+        Command::Config { command } => match command {
+            ConfigCommand::Path => {
+                println!("{}", config::path()?.display());
+                Ok(())
+            }
+            ConfigCommand::Edit => editor::edit(&config::create_if_missing()?),
+        },
+        Command::Roots { command } => match command {
+            RootsCommand::List => {
+                let config = config::load()?;
+                let mut roots = config.roots.into_iter().collect::<Vec<_>>();
+                roots.sort_by(|left, right| left.0.cmp(&right.0));
+                for (name, path) in roots {
+                    println!("{name} -> {}", path.display());
+                }
+                Ok(())
+            }
+        },
+        Command::Link {
+            directory,
+            root,
+            format,
+            label,
+        } => {
+            let config = config::load()?;
+            println!(
+                "{}",
+                link::create(
+                    &config,
+                    &directory,
+                    root.as_deref(),
+                    format,
+                    label.as_deref()
+                )?
+            );
             Ok(())
         }
         Command::Register => platform::register(),

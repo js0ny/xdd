@@ -1,4 +1,10 @@
-use std::{collections::HashMap, env, fs, path::PathBuf};
+use std::{
+    collections::HashMap,
+    env,
+    fs::{self, OpenOptions},
+    io::Write,
+    path::PathBuf,
+};
 
 use directories::BaseDirs;
 use serde::Deserialize;
@@ -16,7 +22,7 @@ struct FileConfig {
 }
 
 pub fn load() -> Result<Config> {
-    let path = config_path()?;
+    let path = path()?;
     let contents = fs::read_to_string(&path).map_err(|error| {
         XddError::new(format!(
             "cannot read configuration {}: {error}",
@@ -62,7 +68,7 @@ pub fn load() -> Result<Config> {
     Ok(Config { roots })
 }
 
-fn config_path() -> Result<PathBuf> {
+pub fn path() -> Result<PathBuf> {
     let base_dirs = BaseDirs::new()
         .ok_or_else(|| XddError::new("cannot determine the user's configuration directory"))?;
 
@@ -70,8 +76,46 @@ fn config_path() -> Result<PathBuf> {
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
         .unwrap_or_else(|| base_dirs.config_dir().to_path_buf());
+    if !config_dir.is_absolute() {
+        return Err(XddError::new("XDG_CONFIG_HOME must be an absolute path"));
+    }
 
     Ok(config_dir.join("xdd").join("config.toml"))
+}
+
+pub fn create_if_missing() -> Result<PathBuf> {
+    let path = path()?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            XddError::new(format!(
+                "cannot create configuration directory {}: {error}",
+                parent.display()
+            ))
+        })?;
+    }
+
+    match OpenOptions::new().write(true).create_new(true).open(&path) {
+        Ok(mut file) => file.write_all(b"[roots]\n").map_err(|error| {
+            XddError::new(format!("cannot initialise {}: {error}", path.display()))
+        })?,
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(error) => {
+            return Err(XddError::new(format!(
+                "cannot create configuration {}: {error}",
+                path.display()
+            )));
+        }
+    }
+
+    Ok(path)
+}
+
+pub fn expand_user_path(value: &str) -> Result<PathBuf> {
+    let home = BaseDirs::new()
+        .ok_or_else(|| XddError::new("cannot determine the user's home directory"))?
+        .home_dir()
+        .to_path_buf();
+    expand_home(value, &home)
 }
 
 fn expand_home(value: &str, home: &std::path::Path) -> Result<PathBuf> {

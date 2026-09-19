@@ -66,6 +66,31 @@ Resolve a URL to its absolute path without opening it:
 xdd resolve 'xdd://projects:code/repo'
 ```
 
+Inspect and edit the configuration with:
+
+```bash
+xdd config path
+xdd config edit
+```
+
+List configured roots:
+
+```bash
+xdd roots list
+```
+
+Create a link from an existing directory. The deepest matching root is chosen
+automatically:
+
+```bash
+xdd link ~/Atelier/prj/xdd
+# xdd://projects:xdd
+```
+
+Use `--root` to select an alias explicitly, and `--format` with `plain`,
+`markdown`, `typst`, `org`, or `latex` to render a document link. Formatted
+links use the directory name as their label by default; `--label` overrides it.
+
 Targets are opened with `xdg-open`. The Linux handler is currently fixed and is
 not configurable yet.
 
@@ -83,7 +108,7 @@ nix build github:js0ny/xdd
 - [ ] Config: Environment variable expansion support, use `$VAR` and `%VAR%` for expansion 
 - [ ] Linux: Configuration `linux.handler`, default to `xdg-open`
 - [ ] macOS: Implement, URL Scheme with a swift wrapper
-- [ ] CLI: subcommand `link` to convert from an absolute path to `xdd://` scheme
+- [x] CLI: subcommands `config`, `roots`, and `link`
 
 ## License
 

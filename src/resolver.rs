@@ -10,6 +10,7 @@ pub fn resolve(config: &Config, input: &str) -> Result<PathBuf> {
         .roots
         .get(&root_name)
         .ok_or_else(|| XddError::new(format!("unknown root {root_name:?}")))?;
+    let root = normalise_absolute_path(root)?;
 
     let relative = normalise_relative_path(&relative)?;
     Ok(root.join(relative))
@@ -77,8 +78,18 @@ fn validate_percent_encoding(value: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn normalise_absolute_path(path: &Path) -> Result<PathBuf> {
+    if !path.is_absolute() {
+        return Err(XddError::new("path must be absolute"));
+    }
+    normalise_components(path, true)
+}
+
 fn normalise_relative_path(path: &str) -> Result<PathBuf> {
-    let path = Path::new(path);
+    normalise_components(Path::new(path), false)
+}
+
+fn normalise_components(path: &Path, absolute: bool) -> Result<PathBuf> {
     let mut normalised = PathBuf::new();
 
     for component in path.components() {
@@ -86,9 +97,12 @@ fn normalise_relative_path(path: &str) -> Result<PathBuf> {
             Component::CurDir => {}
             Component::Normal(part) => normalised.push(part),
             Component::ParentDir => {
-                if !normalised.pop() {
+                if !normalised.pop() && !absolute {
                     return Err(XddError::new("path escapes its root"));
                 }
+            }
+            Component::RootDir | Component::Prefix(_) if absolute => {
+                normalised.push(component.as_os_str());
             }
             Component::RootDir | Component::Prefix(_) => {
                 return Err(XddError::new("path must be relative to its root"));
@@ -101,9 +115,12 @@ fn normalise_relative_path(path: &str) -> Result<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::resolve;
+    use super::{normalise_absolute_path, resolve};
     use crate::config::Config;
-    use std::{collections::HashMap, path::PathBuf};
+    use std::{
+        collections::HashMap,
+        path::{Path, PathBuf},
+    };
 
     fn config() -> Config {
         Config {
@@ -139,5 +156,17 @@ mod tests {
         assert!(resolve(&config(), "xdd://docs:%ZZ").is_err());
         assert!(resolve(&config(), "xdd://docs:file?open=1").is_err());
         assert!(resolve(&config(), "xdd://docs%3A:file").is_err());
+    }
+
+    #[test]
+    fn normalises_absolute_paths_lexically() {
+        assert_eq!(
+            normalise_absolute_path(Path::new("/home/test/../docs")).unwrap(),
+            PathBuf::from("/home/docs")
+        );
+        assert_eq!(
+            normalise_absolute_path(Path::new("/../docs")).unwrap(),
+            PathBuf::from("/docs")
+        );
     }
 }
