@@ -1,0 +1,12 @@
+[package]
+name = "diranchor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = "4.6.7"
+directories = "6.0.0"
+percent-encoding = "2.3.2"
+serde = "1.0.229"
+toml = "1.1.6"
+url = "2.5.8"
