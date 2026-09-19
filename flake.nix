@@ -11,6 +11,7 @@
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
+      manifest = builtins.fromTOML (builtins.readFile ./Cargo.toml);
     in
     {
       packages = forAllSystems (
@@ -18,20 +19,26 @@
         let
           pkgs = import nixpkgs { inherit system; };
           lib = pkgs.lib;
+          buildPackage =
+            packageSet:
+            packageSet.rustPlatform.buildRustPackage {
+              pname = manifest.package.name;
+              version = manifest.package.version;
+              src = lib.cleanSource ./.;
+              cargoLock.lockFile = ./Cargo.lock;
+
+              meta = {
+                description = "Cross-platform directory definition URL handler";
+                license = lib.licenses.gpl3Plus;
+                platforms = with lib.platforms; linux ++ darwin;
+              };
+            };
         in
         {
-          default = pkgs.rustPlatform.buildRustPackage {
-            pname = "xdd";
-            version = "0.1.0";
-            src = lib.cleanSource ./.;
-            cargoLock.lockFile = ./Cargo.lock;
-
-            meta = {
-              description = "Cross-platform directory definition URL handler";
-              license = lib.licenses.gpl3Plus;
-              platforms = with lib.platforms; linux ++ darwin;
-            };
-          };
+          default = buildPackage pkgs;
+        }
+        // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+          musl = buildPackage pkgs.pkgsStatic;
         }
       );
       devShells = forAllSystems (
