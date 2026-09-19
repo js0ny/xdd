@@ -47,7 +47,14 @@ xdd register
 ```
 
 `xdd register` installs a user-level desktop entry and makes `xdd` the default
-handler for `xdd://` URLs. Open a URL explicitly with:
+handler for `xdd://` URLs. It delegates the MIME association to `xdg-mime`.
+On systems where the relevant `mimeapps.list` is on a read-only filesystem,
+`xdg-mime` cannot write the association and does not return status 0, so
+`xdd register` cannot complete the registration. Use another method to write
+the desktop association in that environment, such as managing a writable
+`mimeapps.list` through the desktop environment or system configuration.
+
+Open a URL explicitly with:
 
 ```bash
 xdd open 'xdd://projects:code/repo'
