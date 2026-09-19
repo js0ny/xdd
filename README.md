@@ -74,3 +74,17 @@ not configurable yet.
 ```bash
 nix build github:js0ny/xdd
 ```
+
+## Roadmap Before 1.0.0
+
+- [ ] Linux: Basic implementation on Linux
+- [ ] Nix: NixOS and home-manager module to configure desktop entry
+- [ ] Windows: Implement on Windows, define a denied list of symbols, should be cross-platform
+- [ ] Config: Environment variable expansion support, use `$VAR` and `%VAR%` for expansion 
+- [ ] Linux: Configuration `linux.handler`, default to `xdg-open`
+- [ ] macOS: Implement, URL Scheme with a swift wrapper
+- [ ] CLI: subcommand `link` to convert from an absolute path to `xdd://` scheme
+
+## License
+
+[GPL-3.0-or-later](https://spdx.org/licenses/GPL-3.0-or-later.html)

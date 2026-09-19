@@ -28,7 +28,7 @@
 
             meta = {
               description = "Cross-platform directory definition URL handler";
-              license = lib.licenses.asl20;
+              license = lib.licenses.gpl3Plus;
               platforms = with lib.platforms; linux ++ darwin;
             };
           };
