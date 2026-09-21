@@ -103,7 +103,6 @@ nix build github:js0ny/xdd
 ## Roadmap Before 1.0.0
 
 - [ ] Linux: Basic implementation on Linux
-- [ ] Nix: NixOS and home-manager module to configure desktop entry
 - [ ] Windows: Implement on Windows, define a denied list of symbols, should be cross-platform
 - [ ] Config: Environment variable expansion support, use `$VAR` and `%VAR%` for expansion 
 - [ ] Linux: Configuration `linux.handler`, default to `xdg-open`

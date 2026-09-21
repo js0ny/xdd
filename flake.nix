@@ -21,16 +21,33 @@
           lib = pkgs.lib;
           buildPackage =
             packageSet:
+            let
+              desktopItems = lib.optionals packageSet.stdenv.hostPlatform.isLinux [
+                (packageSet.makeDesktopItem {
+                  name = "xdd";
+                  desktopName = "xdd";
+                  exec = "xdd open %u";
+                  noDisplay = true;
+                  terminal = false;
+                  mimeTypes = [ "x-scheme-handler/xdd" ];
+                })
+              ];
+            in
             packageSet.rustPlatform.buildRustPackage {
               pname = manifest.package.name;
               version = manifest.package.version;
               src = lib.cleanSource ./.;
               cargoLock.lockFile = ./Cargo.lock;
+              nativeBuildInputs = lib.optionals packageSet.stdenv.hostPlatform.isLinux [
+                packageSet.copyDesktopItems
+              ];
+              inherit desktopItems;
 
               meta = {
                 description = "Cross-platform directory definition URL handler";
                 license = lib.licenses.gpl3Plus;
                 platforms = with lib.platforms; linux ++ darwin;
+                sourceProvenance = [ lib.sourceTypes.fromSource ];
               };
             };
         in
