@@ -8,6 +8,12 @@ use crate::{Result, XddError};
 #[cfg(target_os = "linux")]
 const OPEN_HANDLER: &str = "xdg-open";
 
+#[cfg(target_os = "windows")]
+use std::{os::windows::ffi::OsStrExt, ptr};
+
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL};
+
 pub fn open(path: &Path) -> Result<()> {
     #[cfg(target_os = "linux")]
     {
@@ -23,7 +29,38 @@ pub fn open(path: &Path) -> Result<()> {
         Ok(())
     }
 
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "windows")]
+    {
+        let wide_path = path
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect::<Vec<_>>();
+        if wide_path[..wide_path.len() - 1].contains(&0) {
+            return Err(XddError::new("target path contains NUL"));
+        }
+
+        let result = unsafe {
+            ShellExecuteW(
+                ptr::null_mut(),
+                ptr::null(),
+                wide_path.as_ptr(),
+                ptr::null(),
+                ptr::null(),
+                SW_SHOWNORMAL,
+            )
+        };
+        if (result as isize) <= 32 {
+            return Err(XddError::new(format!(
+                "cannot open {}: ShellExecuteW returned {}",
+                path.display(),
+                result as isize
+            )));
+        }
+        Ok(())
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
         let _ = path;
         Err(XddError::new(

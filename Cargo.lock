@@ -378,4 +378,5 @@ dependencies = [
  "serde",
  "shell-words",
  "toml",
+ "windows-sys",
 ]
