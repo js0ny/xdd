@@ -117,14 +117,14 @@ fn normalise_components(path: &Path, absolute: bool) -> Result<PathBuf> {
 mod tests {
     use super::{normalise_absolute_path, resolve};
     use crate::config::Config;
-    use std::{
-        collections::HashMap,
-        path::{Path, PathBuf},
-    };
+    use std::collections::HashMap;
 
     fn config() -> Config {
         Config {
-            roots: HashMap::from([("docs".to_owned(), PathBuf::from("/home/test/Documents"))]),
+            roots: HashMap::from([(
+                "docs".to_owned(),
+                std::env::temp_dir().join("xdd-test/Documents"),
+            )]),
         }
     }
 
@@ -132,7 +132,7 @@ mod tests {
     fn resolves_encoded_paths() {
         assert_eq!(
             resolve(&config(), "xdd://docs:notes/hello%20world.md").unwrap(),
-            PathBuf::from("/home/test/Documents/notes/hello world.md")
+            config().roots["docs"].join("notes/hello world.md")
         );
     }
 
@@ -140,7 +140,7 @@ mod tests {
     fn allows_dot_segments_without_escaping() {
         assert_eq!(
             resolve(&config(), "xdd://docs:notes/../readme.md").unwrap(),
-            PathBuf::from("/home/test/Documents/readme.md")
+            config().roots["docs"].join("readme.md")
         );
     }
 
@@ -160,13 +160,16 @@ mod tests {
 
     #[test]
     fn normalises_absolute_paths_lexically() {
+        let base = std::env::temp_dir();
         assert_eq!(
-            normalise_absolute_path(Path::new("/home/test/../docs")).unwrap(),
-            PathBuf::from("/home/docs")
+            normalise_absolute_path(&base.join("test/../docs")).unwrap(),
+            base.join("docs")
         );
+
+        let root = base.ancestors().last().unwrap();
         assert_eq!(
-            normalise_absolute_path(Path::new("/../docs")).unwrap(),
-            PathBuf::from("/docs")
+            normalise_absolute_path(&root.join("../docs")).unwrap(),
+            root.join("docs")
         );
     }
 }

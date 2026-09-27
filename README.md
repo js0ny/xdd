@@ -102,9 +102,8 @@ nix build github:js0ny/xdd
 
 ## Roadmap Before 1.0.0
 
-- [ ] Linux: Basic implementation on Linux
+- [x] Linux: Basic implementation on Linux
 - [ ] Windows: Implement on Windows, define a denied list of symbols, should be cross-platform
-- [ ] Config: Environment variable expansion support, use `$VAR` and `%VAR%` for expansion 
 - [ ] Linux: Configuration `linux.handler`, default to `xdg-open`
 - [ ] macOS: Implement, URL Scheme with a swift wrapper
 - [x] CLI: subcommands `config`, `roots`, and `link`
