@@ -1,6 +1,17 @@
-param([string]$ExePath)
+param(
+  [string]$ExePath,
+  [switch]$Global
+)
 
+$ErrorActionPreference = "Stop"
 $scheme = "xdd"
+if ($Global) {
+  $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+  if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    throw "Global registration requires an elevated PowerShell session"
+  }
+}
+$base = if ($Global) { "HKLM:\Software\Classes\$scheme" } else { "HKCU:\Software\Classes\$scheme" }
 if (-not $ExePath) {
   $command = Get-Command xdd.exe -CommandType Application -ErrorAction Stop
   $ExePath = $command.Path
@@ -11,20 +22,20 @@ if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
 }
 $exe = (Resolve-Path -LiteralPath $ExePath -ErrorAction Stop).ProviderPath
 
-New-Item -Path "HKCU:\Software\Classes\$scheme\shell\open\command" -Force | Out-Null
+New-Item -Path "$base\shell\open\command" -Force | Out-Null
 New-ItemProperty `
-  -Path "HKCU:\Software\Classes\$scheme" `
+  -Path $base `
   -Name "URL Protocol" `
   -Value "" `
   -PropertyType String `
   -Force | Out-Null
 
 Set-ItemProperty `
-  -Path "HKCU:\Software\Classes\$scheme" `
+  -Path $base `
   -Name "(default)" `
   -Value "URL:$scheme Protocol"
 
 Set-ItemProperty `
-  -Path "HKCU:\Software\Classes\$scheme\shell\open\command" `
+  -Path "$base\shell\open\command" `
   -Name "(default)" `
   -Value "`"$exe`" open `"%1`""

@@ -107,6 +107,15 @@ for the current user with PowerShell:
 powershell -ExecutionPolicy Bypass -File .\register.ps1 -ExePath .\xdd.exe
 ```
 
+To register for all users, install the executable in a location accessible to
+all users and run this from an elevated PowerShell session:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\register.ps1 -ExePath .\xdd.exe -Global
+```
+
+Per-user registrations take precedence over the machine-wide one.
+
 The registration stores the executable's absolute path; rerun the script if you
 move it. For a source build, use
 `packaging/windows/register.ps1 -ExePath target/release/xdd.exe` instead.
