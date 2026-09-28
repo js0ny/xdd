@@ -5,9 +5,9 @@
 ## Configuration
 
 On Linux, create `$XDG_CONFIG_HOME/xdd/config.toml`, or
-`~/.config/xdd/config.toml` when `XDG_CONFIG_HOME` is not set. On Windows,
-run `xdd config path` to find the configuration file (normally under
-`%APPDATA%\xdd\config.toml`):
+`~/.config/xdd/config.toml` when `XDG_CONFIG_HOME` is not set. Windows also
+honours `XDG_CONFIG_HOME`; otherwise, run `xdd config path` to find the default
+location (normally `%APPDATA%\xdd\config.toml`):
 
 ```toml
 [roots]
@@ -69,6 +69,9 @@ Inspect and edit the configuration with:
 xdd config path
 xdd config edit
 ```
+
+`xdd config edit` uses `EDITOR` when set, otherwise `edit.exe` on Windows and
+`vim` on Unix. An empty `EDITOR` also selects the platform default.
 
 List configured roots:
 
