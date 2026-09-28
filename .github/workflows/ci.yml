@@ -58,9 +58,9 @@ jobs:
       - name: Check formatting
         run: nix develop --command cargo fmt --all -- --check
       - name: Clippy
-        run: nix develop --command cargo clippy --locked --all-targets -- -D warnings
+        run: nix develop --command cargo clippy --offline --all-targets -- -D warnings
       - name: Test
-        run: nix develop --command cargo test --locked
+        run: nix develop --command cargo test --offline
       - name: Build native Nix package
         run: nix build .#default --no-link --print-build-logs
 
@@ -128,11 +128,11 @@ jobs:
         with:
           persist-credentials: false
       - name: Test
-        run: cargo test --locked
+        run: cargo test --offline
       - name: Clippy
-        run: cargo clippy --locked --all-targets -- -D warnings
+        run: cargo clippy --offline --all-targets -- -D warnings
       - name: Build release binary
-        run: cargo build --locked --release
+        run: cargo build --offline --release
       - name: Package binary and registration script
         run: |
           $name = "xdd-$env:VERSION-$env:TARGET"
