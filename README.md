@@ -37,6 +37,18 @@ including for spaces and path components. `..` is allowed only when the
 normalised path remains below the root. Query parameters and fragments are not
 supported yet.
 
+Existing targets are checked against the root's real filesystem path, so
+symbolic links that resolve outside the root are rejected by default. A missing
+target still resolves lexically, without a filesystem containment check. This
+check is not a sandbox: the filesystem can change between checking and opening.
+To allow existing links to targets outside the root, add the following to the
+configuration:
+
+```toml
+[config]
+restrict_to_root = false
+```
+
 ## Usage
 
 Open a URL explicitly with:

@@ -3,7 +3,11 @@ use std::path::{Component, Path, PathBuf};
 use clap::ValueEnum;
 use percent_encoding::{NON_ALPHANUMERIC, percent_encode};
 
-use crate::{Result, XddError, config, config::Config, resolver::normalise_absolute_path};
+use crate::{
+    Result, XddError, config,
+    config::Config,
+    resolver::{normalise_absolute_path, resolve},
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 pub enum LinkFormat {
@@ -40,6 +44,7 @@ pub fn create(
         .strip_prefix(&root_path)
         .map_err(|_| XddError::new("directory is outside the selected root"))?;
     let url = make_url(&root_name, relative)?;
+    resolve(config, &url)?;
     if format == LinkFormat::Plain {
         if label.is_some() {
             return Err(XddError::new(

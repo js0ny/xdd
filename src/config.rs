@@ -14,11 +14,18 @@ use crate::{Result, XddError};
 #[derive(Debug)]
 pub struct Config {
     pub roots: HashMap<String, PathBuf>,
+    pub restrict_to_root: bool,
 }
 
 #[derive(Debug, Deserialize)]
 struct FileConfig {
     roots: HashMap<String, String>,
+    config: Option<FileOptions>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FileOptions {
+    restrict_to_root: Option<bool>,
 }
 
 pub fn load() -> Result<Config> {
@@ -40,6 +47,11 @@ pub fn load() -> Result<Config> {
         .ok_or_else(|| XddError::new("cannot determine the user's home directory"))?
         .home_dir()
         .to_path_buf();
+
+    let restrict_to_root = file_config
+        .config
+        .and_then(|options| options.restrict_to_root)
+        .unwrap_or(true);
 
     let roots = file_config
         .roots
@@ -65,7 +77,10 @@ pub fn load() -> Result<Config> {
         })
         .collect::<Result<HashMap<_, _>>>()?;
 
-    Ok(Config { roots })
+    Ok(Config {
+        roots,
+        restrict_to_root,
+    })
 }
 
 pub fn path() -> Result<PathBuf> {
@@ -135,7 +150,7 @@ fn expand_home(value: &str, home: &std::path::Path) -> Result<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::expand_home;
+    use super::{FileConfig, expand_home};
     use std::path::Path;
 
     #[test]
@@ -148,6 +163,16 @@ mod tests {
             expand_home("~/Documents", Path::new("/home/test")).unwrap(),
             Path::new("/home/test/Documents")
         );
+    }
+
+    #[test]
+    fn parses_restrict_to_root_option() {
+        let default: FileConfig = toml::from_str("[roots]\n").unwrap();
+        assert!(default.config.is_none());
+
+        let configured: FileConfig =
+            toml::from_str("[roots]\n[config]\nrestrict_to_root = false\n").unwrap();
+        assert!(!configured.config.unwrap().restrict_to_root.unwrap());
     }
 
     #[test]

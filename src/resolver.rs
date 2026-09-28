@@ -1,4 +1,8 @@
-use std::path::{Component, Path, PathBuf};
+use std::{
+    fs,
+    io::ErrorKind,
+    path::{Component, Path, PathBuf},
+};
 
 use percent_encoding::percent_decode_str;
 
@@ -13,7 +17,35 @@ pub fn resolve(config: &Config, input: &str) -> Result<PathBuf> {
     let root = normalise_absolute_path(root)?;
 
     let relative = normalise_relative_path(&relative)?;
-    Ok(root.join(relative))
+    let target = root.join(relative);
+    if config.restrict_to_root {
+        check_containment(&root, &target)?;
+    }
+    Ok(target)
+}
+
+fn check_containment(root: &Path, target: &Path) -> Result<()> {
+    let actual_target = match fs::canonicalize(target) {
+        Ok(path) => path,
+        // Missing targets retain lexical resolution; there is no final target to check yet.
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(XddError::new(format!(
+                "cannot resolve target {}: {error}",
+                target.display()
+            )));
+        }
+    };
+    let actual_root = fs::canonicalize(root).map_err(|error| {
+        XddError::new(format!("cannot resolve root {}: {error}", root.display()))
+    })?;
+    if !actual_target.starts_with(&actual_root) {
+        return Err(XddError::new(format!(
+            "target resolves outside root: {}",
+            target.display()
+        )));
+    }
+    Ok(())
 }
 
 fn parse_url(input: &str) -> Result<(String, String)> {
@@ -125,6 +157,7 @@ mod tests {
                 "docs".to_owned(),
                 std::env::temp_dir().join("xdd-test/Documents"),
             )]),
+            restrict_to_root: true,
         }
     }
 
@@ -170,6 +203,74 @@ mod tests {
         assert_eq!(
             normalise_absolute_path(&root.join("../docs")).unwrap(),
             root.join("docs")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn restricts_symlink_targets_to_root() {
+        use std::{
+            fs,
+            os::unix::fs::symlink,
+            time::{SystemTime, UNIX_EPOCH},
+        };
+
+        struct Fixture(std::path::PathBuf);
+        impl Drop for Fixture {
+            fn drop(&mut self) {
+                let _ = fs::remove_dir_all(&self.0);
+            }
+        }
+
+        let fixture = Fixture(std::env::temp_dir().join(format!(
+            "xdd-guard-{}-{}",
+            std::process::id(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        )));
+        let root = fixture.0.join("root");
+        let outside = fixture.0.join("outside");
+        fs::create_dir_all(root.join("inside")).unwrap();
+        fs::create_dir(&outside).unwrap();
+        fs::write(root.join("inside/file"), "inside").unwrap();
+        fs::write(outside.join("file"), "outside").unwrap();
+        symlink(root.join("inside"), root.join("safe")).unwrap();
+        symlink(&outside, root.join("escape")).unwrap();
+
+        let mut config = config();
+        config.roots.insert("docs".to_owned(), root.clone());
+        assert_eq!(
+            resolve(&config, "xdd://docs:safe/file").unwrap(),
+            root.join("safe/file")
+        );
+        assert!(resolve(&config, "xdd://docs:escape/file").is_err());
+        assert_eq!(
+            resolve(&config, "xdd://docs:escape/missing").unwrap(),
+            root.join("escape/missing")
+        );
+        assert!(
+            crate::link::create(
+                &config,
+                root.join("escape").to_str().unwrap(),
+                None,
+                crate::link::LinkFormat::Plain,
+                None,
+            )
+            .is_err()
+        );
+
+        let root_alias = fixture.0.join("alias");
+        symlink(&root, &root_alias).unwrap();
+        config.roots.insert("docs".to_owned(), root_alias.clone());
+        assert_eq!(
+            resolve(&config, "xdd://docs:inside/file").unwrap(),
+            root_alias.join("inside/file")
+        );
+        assert!(resolve(&config, "xdd://docs:escape/file").is_err());
+
+        config.restrict_to_root = false;
+        assert_eq!(
+            resolve(&config, "xdd://docs:escape/file").unwrap(),
+            root_alias.join("escape/file")
         );
     }
 }
