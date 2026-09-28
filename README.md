@@ -148,7 +148,7 @@ Adding the package to your `environment.systemPackages` will handle the URI sche
 ## Roadmap Before 1.0.0
 
 - [x] Linux: Basic implementation on Linux
-- [ ] Windows: Implement on Windows, define a denied list of symbols, should be cross-platform
+- [x] Windows: Implement on Windows, define a denied list of symbols, should be cross-platform
 - [ ] Linux: Configuration `linux.handler`, default to `xdg-open`
 - [ ] macOS: Implement, URL Scheme with a swift wrapper
 - [x] CLI: subcommands `config`, `roots`, and `link`
