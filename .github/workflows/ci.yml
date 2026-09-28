@@ -112,9 +112,51 @@ jobs:
           retention-days: 14
           compression-level: 0
 
+  windows:
+    needs: metadata
+    name: Windows (x86_64-pc-windows-msvc)
+    runs-on: windows-2022
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      VERSION: ${{ needs.metadata.outputs.version }}
+      TARGET: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Test
+        run: cargo test --locked
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Build release binary
+        run: cargo build --locked --release
+      - name: Package binary and registration script
+        run: |
+          $name = "xdd-$env:VERSION-$env:TARGET"
+          New-Item -ItemType Directory -Path "dist/$name" -Force | Out-Null
+          Copy-Item target/release/xdd.exe, README.md, LICENSE, packaging/windows/register.ps1 "dist/$name/"
+          Compress-Archive -LiteralPath "dist/$name" -DestinationPath "dist/$name.zip"
+      - name: Smoke test packaged binary
+        run: |
+          $name = "xdd-$env:VERSION-$env:TARGET"
+          $unpacked = Join-Path $env:RUNNER_TEMP 'xdd-package'
+          Expand-Archive -LiteralPath "dist/$name.zip" -DestinationPath $unpacked
+          if (-not (Test-Path "$unpacked/$name/register.ps1")) { throw 'Registration script missing from archive' }
+          python .github/scripts/smoke-test.py "$unpacked/$name/xdd.exe"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: xdd-${{ env.TARGET }}
+          path: dist/*.zip
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
   release:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [metadata, checks, linux]
+    needs: [metadata, checks, linux, windows]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -127,17 +169,18 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          pattern: xdd-*-unknown-linux-musl
+          pattern: xdd-*
           merge-multiple: true
           path: dist
       - name: Package source and checksums
         run: |
           test -f "dist/xdd-$VERSION-x86_64-unknown-linux-musl.tar.gz"
           test -f "dist/xdd-$VERSION-aarch64-unknown-linux-musl.tar.gz"
+          test -f "dist/xdd-$VERSION-x86_64-pc-windows-msvc.zip"
           git archive --format=tar.gz --prefix="xdd-$VERSION-source/" \
             --output="dist/xdd-$VERSION-source.tar.gz" HEAD
           cd dist
-          sha256sum ./*.tar.gz > SHA256SUMS
+          sha256sum ./*.tar.gz ./*.zip > SHA256SUMS
       - name: Create or update draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -152,4 +195,4 @@ jobs:
             gh release create "$VERSION" --verify-tag --draft \
               --title "$VERSION" --generate-notes
           fi
-          gh release upload "$VERSION" dist/*.tar.gz dist/SHA256SUMS --clobber
+          gh release upload "$VERSION" dist/*.tar.gz dist/*.zip dist/SHA256SUMS --clobber
