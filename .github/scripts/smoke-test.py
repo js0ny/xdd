@@ -1,10 +1,9 @@
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
-
+from pathlib import Path
 
 binary = Path(sys.argv[1]).resolve()
 with tempfile.TemporaryDirectory(prefix="xdd-smoke-") as temporary:
@@ -41,13 +40,13 @@ with tempfile.TemporaryDirectory(prefix="xdd-smoke-") as temporary:
     assert run("config", "path") == str(config)
     assert run("roots", "list") == f"projects -> {projects}"
     url = run("link", str(target))
-    assert url == "xdd://projects:hello%20world"
+    assert url == "xdd://projects/hello%20world"
     assert run("resolve", url) == str(target)
     assert run("link", "projects/hello world") == url
     assert run("link", str(target), "--format", "markdown", "--label", "Example") == (
         f"[Example]({url})"
     )
-    run("resolve", "xdd://projects:../outside", success=False)
+    run("resolve", "xdd://projects/../outside", success=False)
     run("link", str(home), success=False)
 
 print("Smoke tests passed")
