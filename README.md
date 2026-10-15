@@ -13,6 +13,9 @@ location (normally `%APPDATA%\xdd\config.toml`):
 [roots]
 docs = "~/Documents"
 projects = "~/Code/contrib"
+
+[config]
+compatible_colon_separator = false
 ```
 
 Root paths must be absolute, optionally using `~` or `~/...`. Root names may
@@ -23,19 +26,27 @@ contain any characters except `:`.
 A URL uses the following form:
 
 ```text
-xdd://root:relative/path
+xdd://root/relative/path
 ```
 
 For example:
 
 ```markdown
-[Repo Path](xdd://projects:code/repo)
+[Repo Path](xdd://projects/code/repo)
 ```
 
 The path is resolved below the selected root. Percent encoding is supported,
 including for spaces and path components. `..` is allowed only when the
 normalised path remains below the root. Query parameters and fragments are not
 supported yet.
+
+Use `xdd://root/` to refer to the root directory itself.
+
+The legacy form `xdd://root:relative/path` is rejected by default. To accept
+it alongside slash-separated URLs, set `compatible_colon_separator = true`
+under `[config]`. This is due to some libraries will parse the part after `:` as port,
+which will result in an error for the use case of `xdd`.
+
 
 Existing targets are checked against the root's real filesystem path, so
 symbolic links that resolve outside the root are rejected by default. A missing
@@ -54,13 +65,13 @@ restrict_to_root = false
 Open a URL explicitly with:
 
 ```bash
-xdd open 'xdd://projects:code/repo'
+xdd open 'xdd://projects/code/repo'
 ```
 
 Resolve a URL to its absolute path without opening it:
 
 ```bash
-xdd resolve 'xdd://projects:code/repo'
+xdd resolve 'xdd://projects/code/repo'
 ```
 
 Inspect and edit the configuration with:
@@ -84,7 +95,7 @@ automatically:
 
 ```bash
 xdd link ~/Atelier/prj/xdd
-# xdd://projects:xdd
+# xdd://projects/xdd
 ```
 
 Use `--root` to select an alias explicitly, and `--format` with `plain`,

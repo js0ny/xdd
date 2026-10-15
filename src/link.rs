@@ -142,7 +142,7 @@ fn make_url(root_name: &str, relative: &Path) -> Result<String> {
         path.push_str(&percent_encode(component.as_bytes(), NON_ALPHANUMERIC).to_string());
     }
 
-    Ok(format!("xdd://{root}:{path}"))
+    Ok(format!("xdd://{root}/{path}"))
 }
 
 fn default_label(target: &Path, root_name: &str) -> String {
@@ -226,27 +226,27 @@ mod tests {
     fn encodes_relative_urls() {
         assert_eq!(
             make_url("projects", Path::new("hello world/xdd")).unwrap(),
-            "xdd://projects:hello%20world/xdd"
+            "xdd://projects/hello%20world/xdd"
         );
     }
 
     #[test]
     fn renders_formats() {
         assert_eq!(
-            render(LinkFormat::Markdown, "xdd://projects:xdd", "xdd").unwrap(),
-            "[xdd](xdd://projects:xdd)"
+            render(LinkFormat::Markdown, "xdd://projects/xdd", "xdd").unwrap(),
+            "[xdd](xdd://projects/xdd)"
         );
         assert_eq!(
-            render(LinkFormat::Typst, "xdd://projects:xdd", "xdd").unwrap(),
-            "#link(\"xdd://projects:xdd\")[xdd]"
+            render(LinkFormat::Typst, "xdd://projects/xdd", "xdd").unwrap(),
+            "#link(\"xdd://projects/xdd\")[xdd]"
         );
         assert_eq!(
-            render(LinkFormat::Org, "xdd://projects:xdd", "xdd").unwrap(),
-            "[[xdd://projects:xdd][xdd]]"
+            render(LinkFormat::Org, "xdd://projects/xdd", "xdd").unwrap(),
+            "[[xdd://projects/xdd][xdd]]"
         );
         assert_eq!(
-            render(LinkFormat::Latex, "xdd://projects:xdd", "xdd").unwrap(),
-            r#"\href{xdd://projects:xdd}{xdd}"#
+            render(LinkFormat::Latex, "xdd://projects/xdd", "xdd").unwrap(),
+            r#"\href{xdd://projects/xdd}{xdd}"#
         );
     }
 }

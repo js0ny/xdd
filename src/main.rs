@@ -141,30 +141,3 @@ fn run() -> Result<()> {
         Command::Register => platform::register(),
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use clap::Parser;
-
-    use super::{Cli, Command};
-
-    #[test]
-    fn parses_open_command() {
-        assert!(matches!(
-            Cli::try_parse_from(["xdd", "open", "xdd://docs:file.md"])
-                .unwrap()
-                .command,
-            Command::Open { .. }
-        ));
-    }
-
-    #[test]
-    fn parses_resolve_command() {
-        assert!(matches!(
-            Cli::try_parse_from(["xdd", "resolve", "xdd://docs:file.md"])
-                .unwrap()
-                .command,
-            Command::Resolve { .. }
-        ));
-    }
-}

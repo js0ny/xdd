@@ -9,7 +9,7 @@ use percent_encoding::percent_decode_str;
 use crate::{Result, XddError, config::Config};
 
 pub fn resolve(config: &Config, input: &str) -> Result<PathBuf> {
-    let (root_name, relative) = parse_url(input)?;
+    let (root_name, relative) = parse_url(input, config.compatible_colon_separator)?;
     let root = config
         .roots
         .get(&root_name)
@@ -48,7 +48,7 @@ fn check_containment(root: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
-fn parse_url(input: &str) -> Result<(String, String)> {
+fn parse_url(input: &str, compatible_colon_separator: bool) -> Result<(String, String)> {
     let remainder = input
         .strip_prefix("xdd://")
         .ok_or_else(|| XddError::new("URL must use the xdd:// scheme"))?;
@@ -60,8 +60,13 @@ fn parse_url(input: &str) -> Result<(String, String)> {
     }
 
     let separator = remainder
-        .find(':')
-        .ok_or_else(|| XddError::new("URL must contain ':' between root and path"))?;
+        .find(['/', ':'])
+        .ok_or_else(|| XddError::new("URL must contain '/' between root and path"))?;
+    if remainder.as_bytes()[separator] == b':' && !compatible_colon_separator {
+        return Err(XddError::new(
+            "colon-separated URLs are disabled; use '/' or enable config.compatible_colon_separator",
+        ));
+    }
     let encoded_root = &remainder[..separator];
     let encoded_path = &remainder[separator + 1..];
 
@@ -158,13 +163,14 @@ mod tests {
                 std::env::temp_dir().join("xdd-test/Documents"),
             )]),
             restrict_to_root: true,
+            compatible_colon_separator: false,
         }
     }
 
     #[test]
     fn resolves_encoded_paths() {
         assert_eq!(
-            resolve(&config(), "xdd://docs:notes/hello%20world.md").unwrap(),
+            resolve(&config(), "xdd://docs/notes/hello%20world.md").unwrap(),
             config().roots["docs"].join("notes/hello world.md")
         );
     }
@@ -172,23 +178,69 @@ mod tests {
     #[test]
     fn allows_dot_segments_without_escaping() {
         assert_eq!(
-            resolve(&config(), "xdd://docs:notes/../readme.md").unwrap(),
+            resolve(&config(), "xdd://docs/notes/../readme.md").unwrap(),
             config().roots["docs"].join("readme.md")
         );
     }
 
     #[test]
     fn rejects_escape_attempts() {
-        assert!(resolve(&config(), "xdd://docs:../secret").is_err());
-        assert!(resolve(&config(), "xdd://docs:%2e%2e/secret").is_err());
-        assert!(resolve(&config(), "xdd://docs:/etc/passwd").is_err());
+        assert!(resolve(&config(), "xdd://docs/../secret").is_err());
+        assert!(resolve(&config(), "xdd://docs/%2e%2e/secret").is_err());
+        assert!(resolve(&config(), "xdd://docs//etc/passwd").is_err());
     }
 
     #[test]
     fn rejects_invalid_url_parts() {
-        assert!(resolve(&config(), "xdd://docs:%ZZ").is_err());
-        assert!(resolve(&config(), "xdd://docs:file?open=1").is_err());
-        assert!(resolve(&config(), "xdd://docs%3A:file").is_err());
+        assert!(resolve(&config(), "xdd://docs/%ZZ").is_err());
+        assert!(resolve(&config(), "xdd://docs/file?open=1").is_err());
+        assert!(resolve(&config(), "xdd://docs%3A/file").is_err());
+    }
+
+    #[test]
+    fn requires_opt_in_for_colon_separator() {
+        let mut config = config();
+        assert!(resolve(&config, "xdd://docs:notes/file.md").is_err());
+        assert!(resolve(&config, "xdd://docs:").is_err());
+
+        config.compatible_colon_separator = true;
+        assert_eq!(
+            resolve(&config, "xdd://docs:notes/file.md").unwrap(),
+            config.roots["docs"].join("notes/file.md")
+        );
+        assert_eq!(
+            resolve(&config, "xdd://docs/notes/file.md").unwrap(),
+            config.roots["docs"].join("notes/file.md")
+        );
+        assert_eq!(
+            resolve(&config, "xdd://docs:").unwrap(),
+            config.roots["docs"]
+        );
+        assert!(resolve(&config, "xdd://docs:%2e%2e/secret").is_err());
+        assert!(resolve(&config, "xdd://docs:/etc/passwd").is_err());
+    }
+
+    #[test]
+    fn resolves_root_directory() {
+        assert_eq!(
+            resolve(&config(), "xdd://docs/").unwrap(),
+            config().roots["docs"]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn preserves_colons_in_paths() {
+        let mut config = config();
+        for compatible in [false, true] {
+            config.compatible_colon_separator = compatible;
+            for input in ["xdd://docs/notes:file.md", "xdd://docs/notes%3Afile.md"] {
+                assert_eq!(
+                    resolve(&config, input).unwrap(),
+                    config.roots["docs"].join("notes:file.md")
+                );
+            }
+        }
     }
 
     #[test]
@@ -239,12 +291,12 @@ mod tests {
         let mut config = config();
         config.roots.insert("docs".to_owned(), root.clone());
         assert_eq!(
-            resolve(&config, "xdd://docs:safe/file").unwrap(),
+            resolve(&config, "xdd://docs/safe/file").unwrap(),
             root.join("safe/file")
         );
-        assert!(resolve(&config, "xdd://docs:escape/file").is_err());
+        assert!(resolve(&config, "xdd://docs/escape/file").is_err());
         assert_eq!(
-            resolve(&config, "xdd://docs:escape/missing").unwrap(),
+            resolve(&config, "xdd://docs/escape/missing").unwrap(),
             root.join("escape/missing")
         );
         assert!(
@@ -262,14 +314,14 @@ mod tests {
         symlink(&root, &root_alias).unwrap();
         config.roots.insert("docs".to_owned(), root_alias.clone());
         assert_eq!(
-            resolve(&config, "xdd://docs:inside/file").unwrap(),
+            resolve(&config, "xdd://docs/inside/file").unwrap(),
             root_alias.join("inside/file")
         );
-        assert!(resolve(&config, "xdd://docs:escape/file").is_err());
+        assert!(resolve(&config, "xdd://docs/escape/file").is_err());
 
         config.restrict_to_root = false;
         assert_eq!(
-            resolve(&config, "xdd://docs:escape/file").unwrap(),
+            resolve(&config, "xdd://docs/escape/file").unwrap(),
             root_alias.join("escape/file")
         );
     }

@@ -15,6 +15,7 @@ use crate::{Result, XddError};
 pub struct Config {
     pub roots: HashMap<String, PathBuf>,
     pub restrict_to_root: bool,
+    pub compatible_colon_separator: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -23,9 +24,10 @@ struct FileConfig {
     config: Option<FileOptions>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct FileOptions {
     restrict_to_root: Option<bool>,
+    compatible_colon_separator: Option<bool>,
 }
 
 pub fn load() -> Result<Config> {
@@ -48,10 +50,9 @@ pub fn load() -> Result<Config> {
         .home_dir()
         .to_path_buf();
 
-    let restrict_to_root = file_config
-        .config
-        .and_then(|options| options.restrict_to_root)
-        .unwrap_or(true);
+    let options = file_config.config.unwrap_or_default();
+    let restrict_to_root = options.restrict_to_root.unwrap_or(true);
+    let compatible_colon_separator = options.compatible_colon_separator.unwrap_or(false);
 
     let roots = file_config
         .roots
@@ -80,6 +81,7 @@ pub fn load() -> Result<Config> {
     Ok(Config {
         roots,
         restrict_to_root,
+        compatible_colon_separator,
     })
 }
 
